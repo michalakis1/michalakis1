@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modbus Dashboard - Login</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background:#1a1a2e; color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .card { width: 360px; background:#16213e; border:1px solid rgba(255,255,255,.2); border-radius:12px; padding:20px; }
+    h1 { font-size:20px; margin:0 0 16px; }
+    label { display:block; margin:10px 0 6px; font-size:14px; }
+    input { width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid #3a4a6a; background:#0f3460; color:#fff; }
+    button { margin-top:16px; width:100%; padding:10px; border:none; border-radius:8px; background:#2794f3; color:#fff; font-weight:700; cursor:pointer; }
+    .error { margin-top:10px; color:#ff8e8e; min-height:20px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sign in</h1>
+    <label for="username">Username</label>
+    <input id="username" type="text" autocomplete="username" />
+
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+
+    <button id="loginBtn">Login</button>
+    <div class="error" id="error"></div>
+  </div>
+
+  <script src="auth.js"></script>
+</body>
+</html>
