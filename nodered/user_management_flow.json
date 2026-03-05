@@ -1,0 +1,115 @@
+[
+  {
+    "id": "tab_auth",
+    "type": "tab",
+    "label": "auth-api",
+    "disabled": false,
+    "info": "Simple auth API for login/register/check-role"
+  },
+  {
+    "id": "in_register",
+    "type": "http in",
+    "z": "tab_auth",
+    "name": "POST /api/auth/register",
+    "url": "/api/auth/register",
+    "method": "post",
+    "upload": false,
+    "wires": [["fn_register_validate"]]
+  },
+  {
+    "id": "fn_register_validate",
+    "type": "function",
+    "z": "tab_auth",
+    "name": "validate + hash (bcryptjs)",
+    "func": "const bcrypt = global.get('bcryptjs');\nconst { username, password, role } = msg.payload || {};\nif (!username || !password || !['admin','engineer','viewer'].includes(role)) {\n  msg.statusCode = 400;\n  msg.payload = { message: 'Invalid payload' };\n  return [null, msg];\n}\nmsg.topic = 'INSERT INTO dashboard_users(username,password_hash,role) VALUES (?,?,?)';\nmsg.payload = [username, bcrypt.hashSync(password, 12), role];\nreturn [msg, null];",
+    "outputs": 2,
+    "noerr": 0,
+    "wires": [["mysql_main", "resp_register_ok"], ["resp_register_err"]]
+  },
+  {
+    "id": "resp_register_ok",
+    "type": "http response",
+    "z": "tab_auth",
+    "name": "201",
+    "statusCode": "201",
+    "headers": {},
+    "wires": []
+  },
+  {
+    "id": "resp_register_err",
+    "type": "http response",
+    "z": "tab_auth",
+    "name": "400",
+    "statusCode": "",
+    "headers": {},
+    "wires": []
+  },
+  {
+    "id": "in_login",
+    "type": "http in",
+    "z": "tab_auth",
+    "name": "POST /api/auth/login",
+    "url": "/api/auth/login",
+    "method": "post",
+    "upload": false,
+    "wires": [["fn_login_query"]]
+  },
+  {
+    "id": "fn_login_query",
+    "type": "function",
+    "z": "tab_auth",
+    "name": "build login query",
+    "func": "const { username } = msg.payload || {};\nmsg.reqBody = msg.payload;\nmsg.topic = 'SELECT id,username,password_hash,role FROM dashboard_users WHERE username=? AND is_active=1 LIMIT 1';\nmsg.payload = [username];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "wires": [["mysql_main", "fn_login_validate"]]
+  },
+  {
+    "id": "fn_login_validate",
+    "type": "function",
+    "z": "tab_auth",
+    "name": "validate password + issue token",
+    "func": "const bcrypt = global.get('bcryptjs');\nconst crypto = global.get('crypto');\nconst row = (msg.payload || [])[0];\nconst reqBody = msg.reqBody || {};\nif (!row || !bcrypt.compareSync(reqBody.password || '', row.password_hash)) {\n  msg.statusCode = 401;\n  msg.payload = { message: 'Invalid credentials' };\n  return [null, msg];\n}\nconst rawToken = crypto.randomBytes(32).toString('hex');\nconst tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');\nconst expiresAt = new Date(Date.now() + 8*60*60*1000);\nmsg.session = { userId: row.id, username: row.username, role: row.role, rawToken, tokenHash, expiresAt };\nmsg.topic = 'INSERT INTO dashboard_sessions(user_id,token_hash,expires_at) VALUES (?,?,?)';\nmsg.payload = [row.id, tokenHash, expiresAt.toISOString().slice(0,19).replace('T',' ')];\nreturn [msg, null];",
+    "outputs": 2,
+    "noerr": 0,
+    "wires": [["mysql_main", "fn_login_response"], ["resp_login_err"]]
+  },
+  {
+    "id": "fn_login_response",
+    "type": "function",
+    "z": "tab_auth",
+    "name": "return token",
+    "func": "const s = msg.session;\nmsg.payload = { token: s.rawToken, username: s.username, role: s.role, expiresAt: s.expiresAt.toISOString() };\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "wires": [["resp_login_ok"]]
+  },
+  {
+    "id": "resp_login_ok",
+    "type": "http response",
+    "z": "tab_auth",
+    "name": "200",
+    "statusCode": "200",
+    "headers": {},
+    "wires": []
+  },
+  {
+    "id": "resp_login_err",
+    "type": "http response",
+    "z": "tab_auth",
+    "name": "401",
+    "statusCode": "",
+    "headers": {},
+    "wires": []
+  },
+  {
+    "id": "mysql_main",
+    "type": "mysql",
+    "name": "mysql-auth",
+    "host": "127.0.0.1",
+    "port": "3306",
+    "db": "dashboard",
+    "tz": "",
+    "charset": "UTF8"
+  }
+]
